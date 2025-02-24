@@ -6,13 +6,6 @@
     <title>Cosmic Collector</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #ff6f61, #6b48ff, #00ddeb);
-            --star-color: #ffd700;
-            --asteroid-color: #555;
-            --spaceship-color: #00ddeb;
-        }
-
         body {
             margin: 0;
             padding: 0;
@@ -26,23 +19,42 @@
             position: relative;
         }
 
+        /* Cosmic Particle Background */
+        body::before {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="2" fill="rgba(255,255,255,0.2)"/></svg>');
+            background-size: 20px 20px;
+            animation: twinkle 5s infinite;
+            opacity: 0.5;
+            z-index: 0;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
         #gameContainer {
             position: relative;
             width: 100%;
             height: 100%;
             max-width: 800px;
             max-height: 600px;
+            z-index: 1;
         }
 
         #gameCanvas {
             width: 100%;
             height: 100%;
-            background: var(--primary-gradient);
+            background: linear-gradient(135deg, #ff6f61, #6b48ff, #00ddeb);
             background-size: 200% 200%;
             animation: fluidBackground 10s ease infinite;
             border-radius: 10px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            touch-action: none; /* Prevents default touch behaviors */
+            touch-action: none;
         }
 
         @keyframes fluidBackground {
@@ -56,7 +68,7 @@
             top: 10px;
             left: 10px;
             color: #fff;
-            font-size: 1.2em;
+            font-size: 1.5em;
             font-weight: 600;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             z-index: 10;
@@ -77,8 +89,8 @@
             font-weight: 700;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             display: none;
-            animation: popIn 0.5s ease-out;
             z-index: 20;
+            animation: popIn 0.5s ease-out;
         }
 
         @keyframes popIn {
@@ -96,29 +108,12 @@
             font-weight: 600;
             cursor: pointer;
             margin-top: 15px;
-            transition: all 0.3s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         #restartBtn:hover {
             transform: scale(1.1);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-        }
-
-        body::before {
-            content: "";
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="2" fill="rgba(255,255,255,0.2)"/></svg>');
-            background-size: 20px 20px;
-            animation: twinkle 5s infinite;
-            opacity: 0.5;
-            z-index: -1;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 0.8; }
         }
 
         @media (max-width: 600px) {
@@ -146,17 +141,14 @@
         const gameOverScreen = document.getElementById('gameOver');
         const finalScoreDisplay = document.getElementById('finalScore');
         const restartBtn = document.getElementById('restartBtn');
-        const gameContainer = document.getElementById('gameContainer');
 
         let score = 0;
-        let gameRunning = true;
+        let gameRunning = false;
 
-        // Set canvas size dynamically
+        // Canvas sizing
         function resizeCanvas() {
-            canvas.width = gameContainer.clientWidth;
-            canvas.height = gameContainer.clientHeight;
-            spaceship.x = canvas.width / 2;
-            spaceship.y = canvas.height / 2;
+            canvas.width = Math.min(window.innerWidth * 0.9, 800); // 90% of viewport width
+            canvas.height = Math.min(window.innerHeight * 0.9, 600); // 90% of viewport height
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -165,20 +157,19 @@
         const spaceship = {
             x: canvas.width / 2,
             y: canvas.height / 2,
-            size: 30,
-            speed: 5
+            size: 30
         };
 
-        // Stars and Asteroids
+        // Game objects
         const stars = [];
         const asteroids = [];
         const maxStars = 5;
-        const maxAsteroids = 8;
+        const maxAsteroids = 7;
 
         function createStar() {
             return {
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
+                x: Math.random() * (canvas.width - 30) + 15,
+                y: Math.random() * (canvas.height - 30) + 15,
                 size: 15,
                 collected: false
             };
@@ -186,55 +177,46 @@
 
         function createAsteroid() {
             return {
-                x: Math.random() * canvas.width,
-                y: -20,
+                x: Math.random() * (canvas.width - 40),
+                y: -50,
                 size: 40,
-                speed: 4 + Math.random() * 3
+                speed: 4 + Math.random() * 2
             };
         }
 
-        // Populate initial objects
-        for (let i = 0; i < maxStars; i++) stars.push(createStar());
-        for (let i = 0; i < maxAsteroids; i++) asteroids.push(createAsteroid());
+        function initObjects() {
+            stars.length = 0;
+            asteroids.length = 0;
+            for (let i = 0; i < maxStars; i++) stars.push(createStar());
+            for (let i = 0; i < maxAsteroids; i++) asteroids.push(createAsteroid());
+        }
 
-        // Input handling (Mouse and Touch)
-        let touchActive = false;
+        // Input handling
+        function updatePosition(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            spaceship.x = Math.max(spaceship.size / 2, Math.min(canvas.width - spaceship.size / 2, x - rect.left));
+            spaceship.y = Math.max(spaceship.size / 2, Math.min(canvas.height - spaceship.size / 2, y - rect.top));
+        }
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (!touchActive) {
-                const rect = canvas.getBoundingClientRect();
-                spaceship.x = e.clientX - rect.left;
-                spaceship.y = e.clientY - rect.top;
-            }
-        });
+        canvas.addEventListener('mousemove', (e) => updatePosition(e.clientX, e.clientY));
 
         canvas.addEventListener('touchstart', (e) => {
-            touchActive = true;
             e.preventDefault();
             const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            spaceship.x = touch.clientX - rect.left;
-            spaceship.y = touch.clientY - rect.top;
+            updatePosition(touch.clientX, touch.clientY);
         });
 
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            spaceship.x = touch.clientX - rect.left;
-            spaceship.y = touch.clientY - rect.top;
-        });
-
-        canvas.addEventListener('touchend', () => {
-            touchActive = false;
+            updatePosition(touch.clientX, touch.clientY);
         });
 
         // Collision detection
         function checkCollision(obj1, obj2) {
             const dx = obj1.x - obj2.x;
             const dy = obj1.y - obj2.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            return distance < (obj1.size + obj2.size) / 2;
+            return Math.sqrt(dx * dx + dy * dy) < (obj1.size + obj2.size) / 2;
         }
 
         // Game loop
@@ -243,26 +225,26 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw spaceship
+            // Draw spaceship with glow
             ctx.beginPath();
             ctx.moveTo(spaceship.x, spaceship.y - spaceship.size / 2);
             ctx.lineTo(spaceship.x - spaceship.size / 2, spaceship.y + spaceship.size / 2);
             ctx.lineTo(spaceship.x + spaceship.size / 2, spaceship.y + spaceship.size / 2);
             ctx.closePath();
-            ctx.fillStyle = 'var(--spaceship-color)';
+            ctx.fillStyle = '#00ddeb';
             ctx.shadowBlur = 20;
-            ctx.shadowColor = 'var(--spaceship-color)';
+            ctx.shadowColor = '#00ddeb';
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // Handle stars
+            // Draw stars
             stars.forEach((star, index) => {
                 if (!star.collected) {
                     ctx.beginPath();
                     ctx.arc(star.x, star.y, star.size / 2, 0, Math.PI * 2);
-                    ctx.fillStyle = 'var(--star-color)';
+                    ctx.fillStyle = '#ffd700';
                     ctx.shadowBlur = 15;
-                    ctx.shadowColor = 'var(--star-color)';
+                    ctx.shadowColor = '#ffd700';
                     ctx.fill();
                     ctx.shadowBlur = 0;
 
@@ -275,7 +257,7 @@
                 }
             });
 
-            // Handle asteroids
+            // Draw and update asteroids
             asteroids.forEach((asteroid, index) => {
                 asteroid.y += asteroid.speed;
                 if (asteroid.y > canvas.height + asteroid.size) {
@@ -284,7 +266,7 @@
 
                 ctx.beginPath();
                 ctx.arc(asteroid.x, asteroid.y, asteroid.size / 2, 0, Math.PI * 2);
-                ctx.fillStyle = 'var(--asteroid-color)';
+                ctx.fillStyle = '#555';
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#fff';
                 ctx.fill();
@@ -300,23 +282,28 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Restart game
-        restartBtn.addEventListener('click', () => {
+        // Start or restart game
+        function startGame() {
             score = 0;
             scoreDisplay.textContent = `Score: ${score}`;
             gameOverScreen.style.display = 'none';
             gameRunning = true;
-            stars.length = 0;
-            asteroids.length = 0;
-            for (let i = 0; i < maxStars; i++) stars.push(createStar());
-            for (let i = 0; i < maxAsteroids; i++) asteroids.push(createAsteroid());
             spaceship.x = canvas.width / 2;
             spaceship.y = canvas.height / 2;
-            gameLoop();
-        });
+            initObjects();
+            if (!gameLoop.running) {
+                gameLoop.running = true;
+                gameLoop();
+            }
+        }
 
-        // Start game
-        gameLoop();
+        restartBtn.addEventListener('click', startGame);
+
+        // Initial load
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            startGame();
+        });
     </script>
 </body>
 </html>
