@@ -144,11 +144,12 @@
 
         let score = 0;
         let gameRunning = false;
+        let animationFrameId = null;
 
         // Canvas sizing
         function resizeCanvas() {
-            canvas.width = Math.min(window.innerWidth * 0.9, 800); // 90% of viewport width
-            canvas.height = Math.min(window.innerHeight * 0.9, 600); // 90% of viewport height
+            canvas.width = Math.min(window.innerWidth * 0.9, 800);
+            canvas.height = Math.min(window.innerHeight * 0.9, 600);
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -164,7 +165,7 @@
         const stars = [];
         const asteroids = [];
         const maxStars = 5;
-        const maxAsteroids = 7;
+        const maxAsteroids = 3;
 
         function createStar() {
             return {
@@ -180,11 +181,11 @@
                 x: Math.random() * (canvas.width - 40),
                 y: -50,
                 size: 40,
-                speed: 4 + Math.random() * 2
+                speed: 3 + Math.random() * 4
             };
         }
 
-        function initObjects() {
+        function resetGameObjects() {
             stars.length = 0;
             asteroids.length = 0;
             for (let i = 0; i < maxStars; i++) stars.push(createStar());
@@ -221,11 +222,17 @@
 
         // Game loop
         function gameLoop() {
-            if (!gameRunning) return;
+            if (!gameRunning) {
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                return;
+            }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw spaceship with glow
+            // Draw spaceship
             ctx.beginPath();
             ctx.moveTo(spaceship.x, spaceship.y - spaceship.size / 2);
             ctx.lineTo(spaceship.x - spaceship.size / 2, spaceship.y + spaceship.size / 2);
@@ -279,27 +286,27 @@
                 }
             });
 
-            requestAnimationFrame(gameLoop);
+            animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         // Start or restart game
         function startGame() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId); // Cancel any existing loop
+            }
             score = 0;
             scoreDisplay.textContent = `Score: ${score}`;
             gameOverScreen.style.display = 'none';
             gameRunning = true;
             spaceship.x = canvas.width / 2;
             spaceship.y = canvas.height / 2;
-            initObjects();
-            if (!gameLoop.running) {
-                gameLoop.running = true;
-                gameLoop();
-            }
+            resetGameObjects();
+            gameLoop();
         }
 
         restartBtn.addEventListener('click', startGame);
 
-        // Initial load
+        // Initial start
         window.addEventListener('load', () => {
             resizeCanvas();
             startGame();
